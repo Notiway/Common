@@ -21,14 +21,14 @@ jobs:
       with:
         dotnet-version: 10.0.x
         fetch-depth: 0
+    - name: Set VERSION variable from tag
+      run: echo "VERSION=0.7.0" >> $GITHUB_ENV
     - name: Restore dependencies
       run: dotnet restore
     - name: Build
-      run: dotnet build --no-restore
+      run: dotnet build --no-restore --configuration Release /p:Version=${VERSION}
     - name: Test
-      run: dotnet test --no-build --verbosity normal
-    - name: Set VERSION variable from tag
-      run: echo "VERSION=0.7.0" >> $GITHUB_ENV
+      run: dotnet test --no-build --verbosity normal /p:Version=${VERSION} --no-build
     - name: Pack
       run: dotnet pack --configuration Release /p:Version=${VERSION} --no-build --output .
     - name: Push
