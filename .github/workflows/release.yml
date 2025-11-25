@@ -1,4 +1,4 @@
-name: .NET SemVer Publish
+name: .NET SemVer Publish with Release Notes
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write         # MUST be write for GitHub Releases
+  contents: write        # for GitHub Releases
   packages: write
 
 env:
@@ -19,18 +19,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
-          fetch-depth: 0
+          fetch-depth: 0  # needed to get full history and tags
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 10.0.x
 
-      # --------------------------------------------------------
-      # 1) GET LATEST PACKAGE VERSION
-      # --------------------------------------------------------
+      # -------------------------------
+      # 1) Fetch latest GitHub Package version
+      # -------------------------------
       - name: Fetch latest published version from GitHub Packages
         id: get_version
         run: |
@@ -42,19 +42,28 @@ jobs:
           LATEST=$(echo "$PACKAGE_INFO" | jq -r '.[0].name')
 
           if [[ "$LATEST" == "null" || -z "$LATEST" ]]; then
-            echo "No previous packages found. Using 0.0.0"
+            echo "No previous package found. Defaulting to 0.0.0"
             LATEST="0.0.0"
           fi
 
           echo "LATEST_VERSION=$LATEST" >> $GITHUB_OUTPUT
 
-      # --------------------------------------------------------
-      # 2) DETERMINE SEMVER BUMP TYPE FROM COMMITS
-      # --------------------------------------------------------
+      # -------------------------------
+      # 2) Determine semantic version bump from commits
+      # -------------------------------
       - name: Determine bump type from commits
         id: bump
         run: |
-          COMMITS=$(git log -n 20 --pretty=format:"%s")
+          # Get commits since last tag
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [[ -z "$LAST_TAG" ]]; then
+            COMMITS=$(git log --pretty=format:"%s")
+          else
+            COMMITS=$(git log $LAST_TAG..HEAD --pretty=format:"%s")
+          fi
+
+          echo "Commits since last release:"
+          echo "$COMMITS"
 
           if echo "$COMMITS" | grep -qi "BREAKING CHANGE"; then
             BUMP=major
@@ -68,9 +77,9 @@ jobs:
 
           echo "BUMP_TYPE=$BUMP" >> $GITHUB_OUTPUT
 
-      # --------------------------------------------------------
-      # 3) CALCULATE NEW VERSION
-      # --------------------------------------------------------
+      # -------------------------------
+      # 3) Calculate new version
+      # -------------------------------
       - name: Calculate new version
         id: calc_version
         run: |
@@ -100,9 +109,9 @@ jobs:
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "VERSION=$VERSION"
 
-      # --------------------------------------------------------
-      # 4) RESTORE • BUILD • TEST
-      # --------------------------------------------------------
+      # -------------------------------
+      # 4) Restore, Build, Test
+      # -------------------------------
       - name: Restore
         run: dotnet restore
 
@@ -112,32 +121,37 @@ jobs:
       - name: Test
         run: dotnet test --no-build --verbosity normal /p:Version=${VERSION}
 
-      # --------------------------------------------------------
-      # 5) PACK
-      # --------------------------------------------------------
+      # -------------------------------
+      # 5) Pack
+      # -------------------------------
       - name: Pack
         run: dotnet pack --configuration Release /p:Version=${VERSION} --no-build --output .
 
-      # --------------------------------------------------------
-      # 6) PUSH PACKAGE
-      # --------------------------------------------------------
+      # -------------------------------
+      # 6) Push NuGet package
+      # -------------------------------
       - name: Push
         run: dotnet nuget push Notiway.Common.Core.${VERSION}.nupkg --source https://nuget.pkg.github.com/Notiway/index.json --api-key ${{ secrets.GITHUB_TOKEN }}
 
-      # --------------------------------------------------------
-      # 7) GENERATE RELEASE NOTES
-      # --------------------------------------------------------
+      # -------------------------------
+      # 7) Generate release notes
+      # -------------------------------
       - name: Generate release notes
-        id: notes
+        id: release_notes
         run: |
-          NOTES=$(git log -n 20 --pretty=format:"- %s")
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [[ -z "$LAST_TAG" ]]; then
+            NOTES=$(git log --pretty=format:"- %s")
+          else
+            NOTES=$(git log $LAST_TAG..HEAD --pretty=format:"- %s")
+          fi
           echo "RELEASE_NOTES<<EOF" >> $GITHUB_ENV
           echo "$NOTES" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
-      # --------------------------------------------------------
-      # 8) CREATE GITHUB RELEASE
-      # --------------------------------------------------------
+      # -------------------------------
+      # 8) Create GitHub Release
+      # -------------------------------
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
