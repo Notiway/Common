@@ -1,4 +1,4 @@
-name: .NET SemVer Publish with Release Notes
+name: .NET SemVer Publish Modified Projects
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write        # for GitHub Releases
+  contents: write        # required for GitHub Releases
   packages: write
 
 env:
@@ -21,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          fetch-depth: 0  # needed to get full history and tags
+          fetch-depth: 0  # needed to read full history and tags
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -29,41 +29,63 @@ jobs:
           dotnet-version: 10.0.x
 
       # -------------------------------
-      # 1) Fetch latest GitHub Package version
+      # 1) Detect modified projects
       # -------------------------------
-      - name: Fetch latest published version from GitHub Packages
+      - name: Detect modified projects
+        id: modified
+        run: |
+          PROJECTS=("Common.Core" "Another.Project")
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          
+          CHANGED_DIRS=$(git diff --name-only $LAST_TAG HEAD | awk -F/ '{print $1}' | sort -u)
+          
+          PROJECTS_TO_RELEASE=()
+          for PROJ in "${PROJECTS[@]}"; do
+            if echo "$CHANGED_DIRS" | grep -q "^$PROJ$"; then
+              PROJECTS_TO_RELEASE+=("$PROJ")
+            fi
+          done
+          
+          if [ ${#PROJECTS_TO_RELEASE[@]} -eq 0 ]; then
+            echo "No modified projects detected. Exiting."
+            exit 0
+          fi
+          
+          echo "PROJECTS_TO_RELEASE=${PROJECTS_TO_RELEASE[*]}" >> $GITHUB_OUTPUT
+          echo "Projects to release: ${PROJECTS_TO_RELEASE[*]}"
+
+      # -------------------------------
+      # 2) Fetch latest package version (use first modified project)
+      # -------------------------------
+      - name: Fetch latest published version
         id: get_version
         run: |
+          FIRST_PROJECT=$(echo "${{ steps.modified.outputs.PROJECTS_TO_RELEASE }}" | awk '{print $1}')
           PACKAGE_INFO=$(curl -s \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github+json" \
-            https://api.github.com/users/Notiway/packages/nuget/Notiway.Common.Core/versions)
-
+            https://api.github.com/users/Notiway/packages/nuget/$FIRST_PROJECT/versions)
+          
           LATEST=$(echo "$PACKAGE_INFO" | jq -r '.[0].name')
-
+          
           if [[ "$LATEST" == "null" || -z "$LATEST" ]]; then
-            echo "No previous package found. Defaulting to 0.0.0"
             LATEST="0.0.0"
           fi
-
+          
           echo "LATEST_VERSION=$LATEST" >> $GITHUB_OUTPUT
 
       # -------------------------------
-      # 2) Determine semantic version bump from commits
+      # 3) Determine semantic version bump from commits
       # -------------------------------
-      - name: Determine bump type from commits
+      - name: Determine bump type
         id: bump
         run: |
-          # Get commits since last tag
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
           if [[ -z "$LAST_TAG" ]]; then
             COMMITS=$(git log --pretty=format:"%s")
           else
             COMMITS=$(git log $LAST_TAG..HEAD --pretty=format:"%s")
           fi
-
-          echo "Commits since last release:"
-          echo "$COMMITS"
 
           if echo "$COMMITS" | grep -qi "BREAKING CHANGE"; then
             BUMP=major
@@ -78,13 +100,12 @@ jobs:
           echo "BUMP_TYPE=$BUMP" >> $GITHUB_OUTPUT
 
       # -------------------------------
-      # 3) Calculate new version
+      # 4) Calculate new version
       # -------------------------------
       - name: Calculate new version
         id: calc_version
         run: |
           IFS='.' read -r CUR_MAJOR CUR_MINOR CUR_PATCH <<< "${{ steps.get_version.outputs.LATEST_VERSION }}"
-
           MAJOR=${MAJOR:-$CUR_MAJOR}
           MINOR=${MINOR:-$CUR_MINOR}
           PATCH=${PATCH:-$CUR_PATCH}
@@ -105,16 +126,18 @@ jobs:
           esac
 
           VERSION="$MAJOR.$MINOR.$PATCH"
-
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "VERSION=$VERSION"
 
       # -------------------------------
-      # 4) Restore, Build, Test
+      # 5) Restore all projects
       # -------------------------------
       - name: Restore
         run: dotnet restore
 
+      # -------------------------------
+      # 6) Build and Test all projects
+      # -------------------------------
       - name: Build
         run: dotnet build --configuration Release /p:Version=${VERSION}
 
@@ -122,35 +145,41 @@ jobs:
         run: dotnet test --no-build --verbosity normal /p:Version=${VERSION}
 
       # -------------------------------
-      # 5) Pack
+      # 7) Pack and Push only modified projects
       # -------------------------------
-      - name: Pack
-        run: dotnet pack --configuration Release /p:Version=${VERSION} --no-build --output .
+      - name: Pack & Push modified projects
+        run: |
+          for PROJ in ${{ steps.modified.outputs.PROJECTS_TO_RELEASE }}; do
+            echo "Packing $PROJ..."
+            dotnet pack $PROJ/$PROJ.csproj --configuration Release /p:Version=${VERSION} --no-build --output .
+            echo "Pushing $PROJ..."
+            dotnet nuget push $PROJ.${VERSION}.nupkg --source https://nuget.pkg.github.com/Notiway/index.json --api-key ${{ secrets.GITHUB_TOKEN }}
+          done
 
       # -------------------------------
-      # 6) Push NuGet package
-      # -------------------------------
-      - name: Push
-        run: dotnet nuget push Notiway.Common.Core.${VERSION}.nupkg --source https://nuget.pkg.github.com/Notiway/index.json --api-key ${{ secrets.GITHUB_TOKEN }}
-
-      # -------------------------------
-      # 7) Generate release notes
+      # 8) Generate per-project release notes
       # -------------------------------
       - name: Generate release notes
         id: release_notes
         run: |
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-          if [[ -z "$LAST_TAG" ]]; then
-            NOTES=$(git log --pretty=format:"- %s")
-          else
-            NOTES=$(git log $LAST_TAG..HEAD --pretty=format:"- %s")
-          fi
+          RELEASE_NOTES=""
+          for PROJ in ${{ steps.modified.outputs.PROJECTS_TO_RELEASE }}; do
+            if [[ -z "$LAST_TAG" ]]; then
+              NOTES=$(git log --pretty=format:"- %s" -- $PROJ)
+            else
+              NOTES=$(git log $LAST_TAG..HEAD --pretty=format:"- %s" -- $PROJ)
+            fi
+            if [[ -n "$NOTES" ]]; then
+              RELEASE_NOTES="$RELEASE_NOTES\n## $PROJ\n$NOTES\n"
+            fi
+          done
           echo "RELEASE_NOTES<<EOF" >> $GITHUB_ENV
-          echo "$NOTES" >> $GITHUB_ENV
+          echo -e "$RELEASE_NOTES" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
 
       # -------------------------------
-      # 8) Create GitHub Release
+      # 9) Create GitHub Release
       # -------------------------------
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
