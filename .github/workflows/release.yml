@@ -26,7 +26,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 10.0.x
 
       # --------------------------------------------------------
       # 1) GET LATEST PUBLISHED VERSION FROM GITHUB PACKAGES
@@ -124,6 +124,4 @@ jobs:
       # 6) PUBLISH PACKAGE TO GITHUB PACKAGES
       # --------------------------------------------------------
       - name: Push
-        run: dotnet nuget push Notiway.Common.Core.${VERSION}.nupkg \
-              --source https://nuget.pkg.github.com/Notiway/index.json \
-              --api-key ${{ secrets.GITHUB_TOKEN }}
+        run: dotnet nuget push Notiway.Common.Core.${VERSION}.nupkg --source https://nuget.pkg.github.com/Notiway/index.json --api-key ${{ secrets.GITHUB_TOKEN }}
