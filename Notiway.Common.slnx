@@ -1,3 +1,4 @@
 <Solution>
   <Project Path="Notiway.Common.Core/Notiway.Common.Core.csproj" />
+  <Project Path="Notiway.Common.Plugins/Notiway.Common.Plugins.csproj" />
 </Solution>
