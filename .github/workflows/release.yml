@@ -1,40 +1,129 @@
-# This workflow will build a .NET project
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
-
-name: .NET
+name: .NET SemVer Publish
 
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
-    
+  workflow_dispatch:   # allows manual trigger
+
 permissions:
   contents: read
   packages: write
-  
-jobs:
-  build:
 
+env:
+  MAJOR: ""   # Optional overrides
+  MINOR: ""
+  PATCH: ""
+
+jobs:
+  publish:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v6
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v5
-      with:
-        dotnet-version: 10.0.x
-    - name: Set VERSION variable from tag
-      run: echo "VERSION=0.7.0" >> $GITHUB_ENV
-    - name: Restore dependencies
-      run: dotnet restore
-    - name: Build
-      run: dotnet build --no-restore --configuration Release /p:Version=${VERSION}
-    - name: Test
-      run: dotnet test --no-build --verbosity normal /p:Version=${VERSION} --no-build
-    - name: Pack
-      run: dotnet pack --configuration Release /p:Version=${VERSION} --no-build --output .
-    - name: Push
-      run: dotnet nuget push Notiway.Common.Core.${VERSION}.nupkg --source https://nuget.pkg.github.com/Notiway/index.json --api-key ${GITHUB_TOKEN}
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN  }}
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # Needed to read commit history
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      # --------------------------------------------------------
+      # 1) GET LATEST PUBLISHED VERSION FROM GITHUB PACKAGES
+      # --------------------------------------------------------
+      - name: Fetch latest published version from GitHub Packages
+        id: get_version
+        run: |
+          PACKAGE_INFO=$(curl -s \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/users/Notiway/packages/nuget/Notiway.Common.Core/versions)
+
+          LATEST=$(echo "$PACKAGE_INFO" | jq -r '.[0].name')
+
+          if [[ "$LATEST" == "null" || -z "$LATEST" ]]; then
+            echo "No previous packages found. Using 0.0.0"
+            LATEST="0.0.0"
+          fi
+
+          echo "LATEST_VERSION=$LATEST" >> $GITHUB_OUTPUT
+
+      # --------------------------------------------------------
+      # 2) DETERMINE BUMP TYPE FROM COMMITS (Semantic Versioning)
+      # --------------------------------------------------------
+      - name: Determine bump type from commits
+        id: bump
+        run: |
+          COMMITS=$(git log -n 10 --pretty=format:"%s")
+
+          echo "Recent commits:"
+          echo "$COMMITS"
+
+          if echo "$COMMITS" | grep -qi "BREAKING CHANGE"; then
+            echo "BUMP_TYPE=major" >> $GITHUB_OUTPUT
+          elif echo "$COMMITS" | grep -qi "^feat"; then
+            echo "BUMP_TYPE=minor" >> $GITHUB_OUTPUT
+          elif echo "$COMMITS" | grep -qi "^fix"; then
+            echo "BUMP_TYPE=patch" >> $GITHUB_OUTPUT
+          else
+            echo "BUMP_TYPE=patch" >> $GITHUB_OUTPUT
+          fi
+
+      # --------------------------------------------------------
+      # 3) CALCULATE NEW VERSION
+      # --------------------------------------------------------
+      - name: Calculate new version
+        id: calc_version
+        run: |
+          IFS='.' read -r CUR_MAJOR CUR_MINOR CUR_PATCH <<< "${{ steps.get_version.outputs.LATEST_VERSION }}"
+
+          # Override if env given
+          MAJOR=${MAJOR:-$CUR_MAJOR}
+          MINOR=${MINOR:-$CUR_MINOR}
+          PATCH=${PATCH:-$CUR_PATCH}
+
+          case "${{ steps.bump.outputs.BUMP_TYPE }}" in
+            major)
+              MAJOR=$((MAJOR + 1))
+              MINOR=0
+              PATCH=0
+              ;;
+            minor)
+              MINOR=$((MINOR + 1))
+              PATCH=0
+              ;;
+            patch)
+              PATCH=$((PATCH + 1))
+              ;;
+          esac
+
+          VERSION="$MAJOR.$MINOR.$PATCH"
+
+          echo "VERSION=$VERSION"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      # --------------------------------------------------------
+      # 4) RESTORE • BUILD • TEST
+      # --------------------------------------------------------
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration Release /p:Version=${VERSION}
+
+      - name: Test
+        run: dotnet test --no-build --verbosity normal /p:Version=${VERSION}
+
+      # --------------------------------------------------------
+      # 5) PACK
+      # --------------------------------------------------------
+      - name: Pack
+        run: dotnet pack --configuration Release /p:Version=${VERSION} --no-build --output .
+
+      # --------------------------------------------------------
+      # 6) PUBLISH PACKAGE TO GITHUB PACKAGES
+      # --------------------------------------------------------
+      - name: Push
+        run: dotnet nuget push Notiway.Common.Core.${VERSION}.nupkg \
+              --source https://nuget.pkg.github.com/Notiway/index.json \
+              --api-key ${{ secrets.GITHUB_TOKEN }}
