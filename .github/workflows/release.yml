@@ -65,13 +65,13 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github+json" \
             https://api.github.com/users/Notiway/packages/nuget/$FIRST_PROJECT/versions)
-          
-          LATEST=$(echo "$PACKAGE_INFO" | jq -r '.[0].name')
-          
+      
+          LATEST=$(echo "$PACKAGE_INFO" | jq -r '.versions[0].name')
+      
           if [[ "$LATEST" == "null" || -z "$LATEST" ]]; then
             LATEST="0.0.0"
           fi
-          
+      
           echo "LATEST_VERSION=$LATEST" >> $GITHUB_OUTPUT
 
       # -------------------------------
