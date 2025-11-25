@@ -34,7 +34,7 @@ jobs:
       - name: Detect modified projects
         id: modified
         run: |
-          PROJECTS=("Common.Core" "Another.Project")
+          PROJECTS=("Notiway.Common.Core" "Notiway.Common.Plugins")
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
           
           CHANGED_DIRS=$(git diff --name-only $LAST_TAG HEAD | awk -F/ '{print $1}' | sort -u)
