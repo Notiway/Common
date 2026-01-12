@@ -34,7 +34,7 @@ jobs:
       - name: Detect modified projects
         id: modified
         run: |
-          PROJECTS=("Common.Core" "Another.Project")
+          PROJECTS=("Notiway.Common.Core" "Notiway.Common.Plugins")
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
           
           CHANGED_DIRS=$(git diff --name-only $LAST_TAG HEAD | awk -F/ '{print $1}' | sort -u)
@@ -65,13 +65,13 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github+json" \
             https://api.github.com/users/Notiway/packages/nuget/$FIRST_PROJECT/versions)
-          
-          LATEST=$(echo "$PACKAGE_INFO" | jq -r '.[0].name')
-          
+      
+          LATEST=$(echo "$PACKAGE_INFO" | jq -r '.versions[0].name')
+      
           if [[ "$LATEST" == "null" || -z "$LATEST" ]]; then
             LATEST="0.0.0"
           fi
-          
+      
           echo "LATEST_VERSION=$LATEST" >> $GITHUB_OUTPUT
 
       # -------------------------------
@@ -132,8 +132,15 @@ jobs:
       # -------------------------------
       # 5) Restore all projects
       # -------------------------------
-      - name: Restore
-        run: dotnet restore
+      - name: Restore all projects with GitHub Packages source
+        run: |
+          dotnet nuget add source "https://nuget.pkg.github.com/Notiway/index.json" \
+            --name "github" \
+            --username "Notiway" \
+            --password "${{ secrets.GITHUB_TOKEN }}" \
+            --store-password-in-clear-text
+      
+          dotnet restore
 
       # -------------------------------
       # 6) Build and Test all projects
