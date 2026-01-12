@@ -61,18 +61,26 @@ jobs:
         id: get_version
         run: |
           FIRST_PROJECT=$(echo "${{ steps.modified.outputs.PROJECTS_TO_RELEASE }}" | awk '{print $1}')
-          PACKAGE_INFO=$(curl -s \
+      
+          RESPONSE=$(curl -s \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github+json" \
             https://api.github.com/users/Notiway/packages/nuget/$FIRST_PROJECT/versions)
       
-          LATEST=$(echo "$PACKAGE_INFO" | jq -r '.versions[0].name')
+          # Detect response shape (array vs object)
+          if echo "$RESPONSE" | jq -e 'type=="array"' >/dev/null; then
+            LATEST=$(echo "$RESPONSE" | jq -r '.[0].name')
+          else
+            LATEST=$(echo "$RESPONSE" | jq -r '.versions[0].name')
+          fi
       
-          if [[ "$LATEST" == "null" || -z "$LATEST" ]]; then
+          if [[ -z "$LATEST" || "$LATEST" == "null" ]]; then
+            echo "No previous package found, defaulting to 0.0.0"
             LATEST="0.0.0"
           fi
       
           echo "LATEST_VERSION=$LATEST" >> $GITHUB_OUTPUT
+          echo "Latest version: $LATEST"
 
       # -------------------------------
       # 3) Determine semantic version bump from commits
