@@ -21,5 +21,5 @@ public interface IQueueManager
 
     Task<Processing> IsQueueExistAsync(string queueName, int retry = 3);
 
-    Task<Processing> DeleteQueueAsync(string queueName, int retry = 3);
+    Task<Processing> DeleteQueueAsync(string queueName, CancellationToken cancellationToken, int retry = 3);
 }
