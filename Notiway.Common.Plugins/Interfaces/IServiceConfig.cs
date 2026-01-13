@@ -4,7 +4,7 @@ namespace Notiway.Common.Plugins.Interfaces;
 
 public interface IServiceConfig
 {
-    string GetEnvironmentName();
-
     Task<Result<string>> GetServiceIdAsync();
+
+    Task<Result<(int cpu, int memory)>> GetResourceAllocationAsync();
 }
