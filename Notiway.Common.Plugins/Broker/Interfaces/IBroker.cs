@@ -1,4 +1,5 @@
 ﻿using Notiway.Common.Core.Enums;
+using Notiway.Common.Core.Models;
 
 namespace Notiway.Common.Plugins.Broker.Interfaces;
 public interface IBroker
@@ -7,5 +8,5 @@ public interface IBroker
 
     string GetBrokerAddress();
 
-    Task<IBrokerBinding> BindAsync(IMessageEndpoint endpoint);
+    Task<Result<IBrokerBinding>> BindAsync(IMessageEndpoint endpoint);
 }
