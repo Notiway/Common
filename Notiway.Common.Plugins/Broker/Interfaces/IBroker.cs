@@ -4,9 +4,9 @@ using Notiway.Common.Core.Models;
 namespace Notiway.Common.Plugins.Broker.Interfaces;
 public interface IBroker
 {
-    Task<Processing> SendNotificationAsync<T>(T notification);
+    Task<Processing> SendNotificationAsync<T>(T notification, CancellationToken cancellationToken = default);
 
     string GetBrokerAddress();
 
-    Task<Result<IBrokerBinding>> BindAsync(IMessageEndpoint endpoint);
+    Task<Result<IBrokerBinding>> BindAsync(IMessageEndpoint endpoint, CancellationToken cancellationToken = default);
 }

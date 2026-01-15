@@ -3,5 +3,5 @@
 public interface IBrokerBinding
 {
     string Id { get; }
-    Task UnbindAsync();
+    Task UnbindAsync(CancellationToken cancellationToken = default);
 }
