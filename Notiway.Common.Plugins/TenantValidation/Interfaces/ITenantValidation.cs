@@ -2,7 +2,7 @@
 
 using System.Security.Claims;
 
-namespace Notiway.Common.Plugins.Interfaces;
+namespace Notiway.Common.Plugins.TenantValidation.Interfaces;
 public interface ITenantValidation
 {
     Task<Processing> ValidateAsync(string tenantId, string userId, IEnumerable<Claim> claims);

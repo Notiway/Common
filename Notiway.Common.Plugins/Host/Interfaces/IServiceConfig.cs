@@ -1,6 +1,6 @@
 ﻿using Notiway.Common.Core.Models;
 
-namespace Notiway.Common.Plugins.Interfaces;
+namespace Notiway.Common.Plugins.Host.Interfaces;
 
 public interface IServiceConfig
 {

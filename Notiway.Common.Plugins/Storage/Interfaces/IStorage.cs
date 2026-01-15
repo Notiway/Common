@@ -1,7 +1,7 @@
 ﻿using Notiway.Common.Core.Enums;
 using Notiway.Common.Core.Models;
 
-namespace Notiway.Common.Plugins.Interfaces;
+namespace Notiway.Common.Plugins.Storage.Interfaces;
 public interface IStorage<TItem>
 {
     Task<Processing> SaveAsync(TItem item, bool skipVerCheck = true, CancellationToken cancellationToken = default);

@@ -1,4 +1,4 @@
-﻿namespace Notiway.Common.Plugins.Interfaces;
+﻿namespace Notiway.Common.Plugins;
 public interface IMiddlewarePlugin : IPlugin
 {
 }

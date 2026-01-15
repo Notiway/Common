@@ -4,7 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 using Notiway.Common.Core.Enums;
 
-namespace Notiway.Common.Plugins.Interfaces;
+namespace Notiway.Common.Plugins;
 public interface IPlugin
 {
     /// <summary>
