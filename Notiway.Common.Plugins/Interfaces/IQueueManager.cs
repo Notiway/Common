@@ -15,6 +15,7 @@ public interface IQueueManager
     /// <returns></returns>
     Task<Result<string>> ConstructQueueAsync(
             string queueName,
+            string consumerTarget,
             int messageRetentionPeriod = 3600,
             Dictionary<string, string>? tags = null,
             int retry = 3);

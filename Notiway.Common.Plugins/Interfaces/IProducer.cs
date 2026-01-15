@@ -4,4 +4,6 @@ namespace Notiway.Common.Plugins.Interfaces;
 public interface IProducer
 {
     Task<Processing> SendNotificationAsync<T>(T notification);
+
+    string GetBrokerAddress();
 }
