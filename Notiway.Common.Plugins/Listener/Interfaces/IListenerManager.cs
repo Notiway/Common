@@ -11,9 +11,9 @@ public interface IListenerManager
     /// </summary>
     /// <param name="definition">Logical endpoint definition</param>
     /// <param name="retry">Retry attempts</param>
-    Task<Result<IMessageEndpoint>> CreateEndpointAsync(
+    Task<Result<string>> CreateEndpointAsync(
         string endpointName,
-        Dictionary<string, string>? metadata = null,
+        Dictionary<string, string> metadata,
         int retry = 3,
         CancellationToken cancellationToken = default);
 
