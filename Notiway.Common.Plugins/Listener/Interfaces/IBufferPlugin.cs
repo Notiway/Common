@@ -1,4 +1,4 @@
 ﻿namespace Notiway.Common.Plugins.Listener.Interfaces;
-public interface IListenerPlugin : IPlugin
+public interface IBufferPlugin : IPlugin
 {
 }

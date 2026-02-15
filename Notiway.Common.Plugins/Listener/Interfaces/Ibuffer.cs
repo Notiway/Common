@@ -1,5 +1,5 @@
 ﻿namespace Notiway.Common.Plugins.Listener.Interfaces;
-public interface IListener
+public interface IBuffer
 {
     /// <summary>
     /// 

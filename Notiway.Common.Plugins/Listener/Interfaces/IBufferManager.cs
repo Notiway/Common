@@ -4,7 +4,7 @@ using Notiway.Common.Plugins.Broker.Interfaces;
 
 namespace Notiway.Common.Plugins.Listener.Interfaces;
 
-public interface IListenerManager
+public interface IBufferManager
 {
     /// <summary>
     /// Creates a message endpoint that can receive messages.
