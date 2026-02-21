@@ -7,12 +7,19 @@
     <PackageId>Notiway.Common.Core</PackageId>
     <Authors>Jakub Paulina</Authors>
     <Company>Notiway</Company>
+    <ProjectUrl>https://notiway.net</ProjectUrl>
     <PackageDescription>Base Library that contains all shareable components. used in Notiway ecosystem</PackageDescription>
     <RepositoryUrl>https://github.com/Notiway/Common</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
+    <tags>.net10 notiway base</tags>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
   <PropertyGroup>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
-
+  <ItemGroup>
+    <None Include="icon.png" Pack="true" PackagePath="\"/>
+    <None Include="README.md" Pack="true" PackagePath="\"/>
+  </ItemGroup>
 </Project>
