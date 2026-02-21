@@ -4,6 +4,12 @@ on:
   push:
     branches: [ "main" ]
   workflow_dispatch:
+    inputs:
+      prerelease:
+        description: 'Prerelease label (e.g. alpha, beta). Leave empty for stable release.'
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: write        # required for GitHub Releases
@@ -13,6 +19,7 @@ env:
   MAJOR: ""
   MINOR: ""
   PATCH: ""
+  PRERELEASE: ${{ github.event.inputs.prerelease || 'beta' }}
 
 jobs:
   publish:
@@ -61,26 +68,36 @@ jobs:
         id: get_version
         run: |
           FIRST_PROJECT=$(echo "${{ steps.modified.outputs.PROJECTS_TO_RELEASE }}" | awk '{print $1}')
-      
+
           RESPONSE=$(curl -s \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github+json" \
             https://api.github.com/users/Notiway/packages/nuget/$FIRST_PROJECT/versions)
-      
-          # Detect response shape (array vs object)
+
+          # Get all version names
           if echo "$RESPONSE" | jq -e 'type=="array"' >/dev/null; then
-            LATEST=$(echo "$RESPONSE" | jq -r '.[0].name')
+            ALL_VERSIONS=$(echo "$RESPONSE" | jq -r '.[].name')
           else
-            LATEST=$(echo "$RESPONSE" | jq -r '.versions[0].name')
+            ALL_VERSIONS=$(echo "$RESPONSE" | jq -r '.versions[].name')
           fi
-      
-          if [[ -z "$LATEST" || "$LATEST" == "null" ]]; then
-            echo "No previous package found, defaulting to 0.0.0"
-            LATEST="0.0.0"
+
+          # Find latest stable version (no hyphen = no prerelease suffix)
+          LATEST_STABLE=$(echo "$ALL_VERSIONS" | grep -v '-' | head -1)
+          if [[ -z "$LATEST_STABLE" || "$LATEST_STABLE" == "null" ]]; then
+            LATEST_STABLE="0.0.0"
           fi
-      
-          echo "LATEST_VERSION=$LATEST" >> $GITHUB_OUTPUT
-          echo "Latest version: $LATEST"
+
+          # Find highest prerelease number for the current label (if prerelease mode)
+          PRERELEASE_COUNTER=0
+          if [[ -n "$PRERELEASE" ]]; then
+            PRERELEASE_COUNTER=$(echo "$ALL_VERSIONS" | grep -oP "(?<=-${PRERELEASE}\.)\d+" | sort -n | tail -1)
+            PRERELEASE_COUNTER=${PRERELEASE_COUNTER:-0}
+          fi
+
+          echo "LATEST_VERSION=$LATEST_STABLE" >> $GITHUB_OUTPUT
+          echo "PRERELEASE_COUNTER=$PRERELEASE_COUNTER" >> $GITHUB_OUTPUT
+          echo "Latest stable version: $LATEST_STABLE"
+          echo "Prerelease counter: $PRERELEASE_COUNTER"
 
       # -------------------------------
       # 3) Determine semantic version bump from commits
@@ -118,22 +135,30 @@ jobs:
           MINOR=${MINOR:-$CUR_MINOR}
           PATCH=${PATCH:-$CUR_PATCH}
 
-          case "${{ steps.bump.outputs.BUMP_TYPE }}" in
-            major)
-              MAJOR=$((MAJOR + 1))
-              MINOR=0
-              PATCH=0
-              ;;
-            minor)
-              MINOR=$((MINOR + 1))
-              PATCH=0
-              ;;
-            patch)
-              PATCH=$((PATCH + 1))
-              ;;
-          esac
+          if [[ -n "$PRERELEASE" ]]; then
+            # Prerelease: keep the base version, increment prerelease counter
+            COUNTER=${{ steps.get_version.outputs.PRERELEASE_COUNTER }}
+            COUNTER=$((COUNTER + 1))
+            VERSION="$MAJOR.$MINOR.$PATCH-${PRERELEASE}.${COUNTER}"
+          else
+            # Stable: bump version as usual
+            case "${{ steps.bump.outputs.BUMP_TYPE }}" in
+              major)
+                MAJOR=$((MAJOR + 1))
+                MINOR=0
+                PATCH=0
+                ;;
+              minor)
+                MINOR=$((MINOR + 1))
+                PATCH=0
+                ;;
+              patch)
+                PATCH=$((PATCH + 1))
+                ;;
+            esac
+            VERSION="$MAJOR.$MINOR.$PATCH"
+          fi
 
-          VERSION="$MAJOR.$MINOR.$PATCH"
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "VERSION=$VERSION"
 
@@ -203,6 +228,6 @@ jobs:
           name: v${{ env.VERSION }}
           body: ${{ env.RELEASE_NOTES }}
           draft: false
-          prerelease: false
+          prerelease: ${{ env.PRERELEASE != '' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
