@@ -11,7 +11,7 @@
     <PackageDescription>Base Library that contains all shareable components. used in Notiway ecosystem</PackageDescription>
     <RepositoryUrl>https://github.com/Notiway/Common</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <tags>.net10 notiway base</tags>
+    <Tags>.net10 notiway base</Tags>
     <PackageIcon>icon.png</PackageIcon>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
