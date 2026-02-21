@@ -7,7 +7,7 @@
     <PackageId>Notiway.Common.Plugins</PackageId>
     <Authors>Jakub Paulina</Authors>
     <Company>Notiway</Company>
-    <ProjectUrl>https://notiway.net</ProjectUrl>
+    <PackageProjectUrl>https://notiway.net</PackageProjectUrl>
     <PackageDescription>Set of interfaces and helpers to get Notiway plugins up and running</PackageDescription>
     <RepositoryUrl>https://github.com/Notiway/Common</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
@@ -23,9 +23,9 @@
     <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="2.3.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="9.0.10" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.10" />
-    <PackageReference Include="Notiway.Common.Core" Version="0.7.4" />
-    <None Include="icon.png" Pack="true" PackagePath="\"/>
-    <None Include="README.md" Pack="true" PackagePath="\"/>
+    <PackageReference Include="Notiway.Common.Core" Version="0.7.5" />
+    <None Include="icon.png" Pack="true" PackagePath="\" />
+    <None Include="README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 
 </Project>

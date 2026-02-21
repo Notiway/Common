@@ -7,7 +7,7 @@
     <PackageId>Notiway.Common.Core</PackageId>
     <Authors>Jakub Paulina</Authors>
     <Company>Notiway</Company>
-    <ProjectUrl>https://notiway.net</ProjectUrl>
+    <PackageProjectUrl>https://notiway.net</PackageProjectUrl>
     <PackageDescription>Base Library that contains all shareable components. used in Notiway ecosystem</PackageDescription>
     <RepositoryUrl>https://github.com/Notiway/Common</RepositoryUrl>
     <RepositoryType>git</RepositoryType>

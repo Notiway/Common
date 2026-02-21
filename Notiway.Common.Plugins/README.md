@@ -10,17 +10,17 @@ dotnet add package Notiway.Common.Plugins
 
 ## Plugin types
 
-Every plugin implements `IPlugin` which provides service registration, middleware registration, and provider metadata. Specialized marker interfaces identify the plugin category:
+Every plugin implements **IPlugin** which provides service registration, middleware registration, and provider metadata. Specialized marker interfaces identify the plugin category:
 
 | Interface | Purpose |
 |---|---|
-| `IBufferPlugin` | Consume messages from a queue or stream (SQS, Redis Streams, Kafka, etc.) |
-| `IBrokerPlugin` | Publish messages to other services (SNS, Redis Pub/Sub, Kafka, etc.) |
-| `IStoragePlugin` | Persist and retrieve notifications (DynamoDB, PostgreSQL, MongoDB, etc.) |
-| `IAuthPlugin` | Authenticate incoming connections (JWT, etc.) |
-| `ITenantValidationPlugin` | Validate tenant access and authorization |
-| `IHostPlugin` | Provide host-level runtime configuration |
-| `IMiddlewarePlugin` | Register custom ASP.NET middleware in the pipeline |
+| **IBufferPlugin** | Consume messages from a queue or stream (SQS, Redis Streams, Kafka, etc.) |
+| **IBrokerPlugin** | Publish messages to other services (SNS, Redis Pub/Sub, Kafka, etc.) |
+| **IStoragePlugin** | Persist and retrieve notifications (DynamoDB, PostgreSQL, MongoDB, etc.) |
+| **IAuthPlugin** | Authenticate incoming connections (JWT, etc.) |
+| **ITenantValidationPlugin** | Validate tenant access and authorization |
+| **IHostPlugin** | Provide host-level runtime configuration |
+| **IMiddlewarePlugin** | Register custom ASP.NET middleware in the pipeline |
 
 ## Key interfaces
 
@@ -80,10 +80,10 @@ Task<Processing> ValidateAsync(string tenantId, string userId, IEnumerable<Claim
 
 ## Getting started
 
-1. Create a new class library targeting `net10.0`
-2. Install `Notiway.Common.Plugins`
-3. Implement `IPlugin` and the relevant category interface
-4. Register your services in `Register()` and middleware in `Use()`
+1. Create a new class library targeting **net10.0**
+2. Install **Notiway.Common.Plugins**
+3. Implement **IPlugin** and the relevant category interface
+4. Register your services in **Register()** and middleware in **Use()**
 5. Package as a NuGet and reference it in your Notiway deployment
 
 For existing plugin implementations, see the [Notiway GitHub organization](https://github.com/Notiway).
