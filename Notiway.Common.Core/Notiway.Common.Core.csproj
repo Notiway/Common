@@ -5,11 +5,14 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <PackageId>Notiway.Common.Core</PackageId>
-    <Version>0.8.0</Version>
     <Authors>Jakub Paulina</Authors>
     <Company>Notiway</Company>
-    <PackageDescription>Base Library that contains all shareable components</PackageDescription>
-    <RepositoryUrl>https://github.com/OWNER/REPOSITORY</RepositoryUrl>
+    <PackageDescription>Base Library that contains all shareable components. used in Notiway ecosystem</PackageDescription>
+    <RepositoryUrl>https://github.com/Notiway/Common</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+  </PropertyGroup>
+  <PropertyGroup>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
 
 </Project>

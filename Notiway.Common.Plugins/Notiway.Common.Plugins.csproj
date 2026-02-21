@@ -4,13 +4,15 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Version>0.8.0</Version>
     <PackageId>Notiway.Common.Plugins</PackageId>
-    <Version>1.0.0</Version>
     <Authors>Jakub Paulina</Authors>
     <Company>Notiway</Company>
     <PackageDescription>Set of interfaces and helpers to get Notiway plugins up and running</PackageDescription>
-    <RepositoryUrl>https://github.com/OWNER/REPOSITORY</RepositoryUrl>
+    <RepositoryUrl>https://github.com/Notiway/Common</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+  </PropertyGroup>
+  <PropertyGroup>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>
 
   <ItemGroup>
