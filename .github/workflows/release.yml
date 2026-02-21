@@ -54,17 +54,19 @@ jobs:
           done
           
           if [ ${#PROJECTS_TO_RELEASE[@]} -eq 0 ]; then
-            echo "No modified projects detected. Exiting."
-            exit 0
+            echo "No modified projects detected. Skipping."
+            echo "HAS_PROJECTS=false" >> $GITHUB_OUTPUT
+          else
+            echo "HAS_PROJECTS=true" >> $GITHUB_OUTPUT
+            echo "PROJECTS_TO_RELEASE=${PROJECTS_TO_RELEASE[*]}" >> $GITHUB_OUTPUT
+            echo "Projects to release: ${PROJECTS_TO_RELEASE[*]}"
           fi
-          
-          echo "PROJECTS_TO_RELEASE=${PROJECTS_TO_RELEASE[*]}" >> $GITHUB_OUTPUT
-          echo "Projects to release: ${PROJECTS_TO_RELEASE[*]}"
 
       # -------------------------------
       # 2) Fetch latest package version (use first modified project)
       # -------------------------------
       - name: Fetch latest published version
+        if: steps.modified.outputs.HAS_PROJECTS == 'true'
         id: get_version
         run: |
           FIRST_PROJECT=$(echo "${{ steps.modified.outputs.PROJECTS_TO_RELEASE }}" | awk '{print $1}')
@@ -103,6 +105,7 @@ jobs:
       # 3) Determine semantic version bump from commits
       # -------------------------------
       - name: Determine bump type
+        if: steps.modified.outputs.HAS_PROJECTS == 'true'
         id: bump
         run: |
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
@@ -128,6 +131,7 @@ jobs:
       # 4) Calculate new version
       # -------------------------------
       - name: Calculate new version
+        if: steps.modified.outputs.HAS_PROJECTS == 'true'
         id: calc_version
         run: |
           IFS='.' read -r CUR_MAJOR CUR_MINOR CUR_PATCH <<< "${{ steps.get_version.outputs.LATEST_VERSION }}"
@@ -166,6 +170,7 @@ jobs:
       # 5) Restore all projects
       # -------------------------------
       - name: Restore all projects with GitHub Packages source
+        if: steps.modified.outputs.HAS_PROJECTS == 'true'
         run: |
           dotnet nuget add source "https://nuget.pkg.github.com/Notiway/index.json" \
             --name "github" \
@@ -179,15 +184,18 @@ jobs:
       # 6) Build and Test all projects
       # -------------------------------
       - name: Build
+        if: steps.modified.outputs.HAS_PROJECTS == 'true'
         run: dotnet build --configuration Release /p:Version=${VERSION}
 
       - name: Test
+        if: steps.modified.outputs.HAS_PROJECTS == 'true'
         run: dotnet test --no-build --verbosity normal /p:Version=${VERSION}
 
       # -------------------------------
       # 7) Pack and Push only modified projects
       # -------------------------------
       - name: Pack & Push modified projects
+        if: steps.modified.outputs.HAS_PROJECTS == 'true'
         run: |
           for PROJ in ${{ steps.modified.outputs.PROJECTS_TO_RELEASE }}; do
             echo "Packing $PROJ..."
@@ -200,6 +208,7 @@ jobs:
       # 8) Generate per-project release notes
       # -------------------------------
       - name: Generate release notes
+        if: steps.modified.outputs.HAS_PROJECTS == 'true'
         id: release_notes
         run: |
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
@@ -222,6 +231,7 @@ jobs:
       # 9) Create GitHub Release
       # -------------------------------
       - name: Create GitHub Release
+        if: steps.modified.outputs.HAS_PROJECTS == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ env.VERSION }}
