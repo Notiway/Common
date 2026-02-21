@@ -84,7 +84,7 @@ Task<Processing> ValidateAsync(string tenantId, string userId, IEnumerable<Claim
 2. Install **Notiway.Common.Plugins**
 3. Implement **IPlugin** and the relevant category interface
 4. Register your services in **Register()** and middleware in **Use()**
-5. Package as a NuGet and reference it in your Notiway deployment
+5. Package as a NuGet and reference it in your Notiway deployment (NOT Supported yet)
 
 For existing plugin implementations, see the [Notiway GitHub organization](https://github.com/Notiway).
 
