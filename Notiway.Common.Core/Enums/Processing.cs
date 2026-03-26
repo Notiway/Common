@@ -13,7 +13,7 @@ public enum Processing
     
     Conflict = 31,
 
-    RetryAttempsReached = 32,
+    RetryAttemptsReached = 32,
 
     Unauthorized = 33,
 

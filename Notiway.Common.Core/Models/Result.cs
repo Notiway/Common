@@ -8,25 +8,13 @@ public struct Result<T>
 
     public Processing Processing { get; private set; } = Processing.Error;
 
-    public bool IsSuccess { get; private set; } = false;
+    public bool IsSuccess { get; private set; }
 
-    public bool IsFailure => !IsSuccess;
+    public readonly bool IsFailure => !IsSuccess;
 
     public T Value { get; private set; } = default!;
 
-    public Result(T? value)
-    {
-        if(value is not null)
-        {
-            Processing = Processing.Success;
-            Value = value;
-            IsSuccess = true;
-        }
-        else
-        {
-            Processing = Processing.NotFound;
-        }
-    }
+    public Result(T? value) : this(value, Processing.NotFound) { }
 
     public Result(Processing processing)
     {
