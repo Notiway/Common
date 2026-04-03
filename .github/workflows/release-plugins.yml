@@ -1,8 +1,16 @@
-name: Create Major Release
+name: Release Common.Plugins
 
 on:
   workflow_dispatch:
     inputs:
+      bump:
+        description: 'Version bump type'
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
       prerelease:
         description: 'Prerelease label (e.g. beta). Leave empty for stable release.'
         required: false
@@ -11,11 +19,13 @@ on:
 
 permissions:
   contents: write
-  packages: write
 
 jobs:
   release:
     uses: ./.github/workflows/release.yml
     with:
-      bump: major
+      project: Notiway.Common.Plugins
+      bump: ${{ inputs.bump }}
       prerelease: ${{ inputs.prerelease }}
+    secrets:
+      NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}

@@ -1,10 +1,14 @@
-name: .NET SemVer Publish Modified Projects
+name: Release
 
 on:
   push:
     branches: [ "main" ]
   workflow_call:
     inputs:
+      project:
+        description: 'Project to release'
+        required: true
+        type: string
       bump:
         description: 'Version bump type: major, minor, or patch'
         required: true
@@ -14,10 +18,12 @@ on:
         required: false
         default: ''
         type: string
+    secrets:
+      NUGET_API_KEY:
+        required: true
 
 permissions:
   contents: write
-  packages: write
 
 env:
   MAJOR: ""
@@ -32,7 +38,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          fetch-depth: 0  # needed to read full history and tags
+          fetch-depth: 0
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -40,25 +46,31 @@ jobs:
           dotnet-version: 10.0.x
 
       # -------------------------------
-      # 1) Detect modified projects
+      # 1) Determine projects to release
       # -------------------------------
-      - name: Detect modified projects
+      - name: Determine projects to release
         id: modified
         run: |
-          PROJECTS=("Notiway.Common.Core" "Notiway.Common.Plugins")
-          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          ALL_PROJECTS=("Notiway.Common.Core" "Notiway.Common.Plugins")
 
-          CHANGED_DIRS=$(git diff --name-only $LAST_TAG HEAD | awk -F/ '{print $1}' | sort -u)
+          if [[ -n "${{ inputs.project }}" ]]; then
+            # Manual dispatch: release the specified project
+            PROJECTS_TO_RELEASE=("${{ inputs.project }}")
+          else
+            # Push to main: only release modified projects
+            LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+            CHANGED_DIRS=$(git diff --name-only $LAST_TAG HEAD | awk -F/ '{print $1}' | sort -u)
 
-          PROJECTS_TO_RELEASE=()
-          for PROJ in "${PROJECTS[@]}"; do
-            if echo "$CHANGED_DIRS" | grep -q "^$PROJ$"; then
-              PROJECTS_TO_RELEASE+=("$PROJ")
-            fi
-          done
+            PROJECTS_TO_RELEASE=()
+            for PROJ in "${ALL_PROJECTS[@]}"; do
+              if echo "$CHANGED_DIRS" | grep -q "^$PROJ$"; then
+                PROJECTS_TO_RELEASE+=("$PROJ")
+              fi
+            done
+          fi
 
           if [ ${#PROJECTS_TO_RELEASE[@]} -eq 0 ]; then
-            echo "No modified projects detected. Skipping."
+            echo "No projects to release. Skipping."
             echo "HAS_PROJECTS=false" >> $GITHUB_OUTPUT
           else
             echo "HAS_PROJECTS=true" >> $GITHUB_OUTPUT
@@ -67,7 +79,7 @@ jobs:
           fi
 
       # -------------------------------
-      # 2) Fetch latest package version (use first modified project)
+      # 2) Fetch latest version from NuGet.org
       # -------------------------------
       - name: Fetch latest published version
         if: steps.modified.outputs.HAS_PROJECTS == 'true'
@@ -75,17 +87,8 @@ jobs:
         run: |
           FIRST_PROJECT=$(echo "${{ steps.modified.outputs.PROJECTS_TO_RELEASE }}" | awk '{print $1}')
 
-          RESPONSE=$(curl -s \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github+json" \
-            https://api.github.com/users/Notiway/packages/nuget/$FIRST_PROJECT/versions)
-
-          # Get all version names
-          if echo "$RESPONSE" | jq -e 'type=="array"' >/dev/null; then
-            ALL_VERSIONS=$(echo "$RESPONSE" | jq -r '.[].name')
-          else
-            ALL_VERSIONS=$(echo "$RESPONSE" | jq -r '.versions[].name')
-          fi
+          RESPONSE=$(curl -s "https://api.nuget.org/v3-flatcontainer/${FIRST_PROJECT,,}/index.json")
+          ALL_VERSIONS=$(echo "$RESPONSE" | jq -r '.versions[]')
 
           # Find latest stable version (no hyphen = no prerelease suffix)
           LATEST_STABLE=$(echo "$ALL_VERSIONS" | grep -v '-' | sort -t. -k1,1n -k2,2n -k3,3n | tail -1)
@@ -106,13 +109,12 @@ jobs:
           echo "Prerelease counter: $PRERELEASE_COUNTER"
 
       # -------------------------------
-      # 3) Determine semantic version bump from commits
+      # 3) Determine semantic version bump
       # -------------------------------
       - name: Determine bump type
         if: steps.modified.outputs.HAS_PROJECTS == 'true'
         id: bump
         run: |
-          # Use explicit input if provided, otherwise detect from commits
           if [[ -n "${{ inputs.bump }}" ]]; then
             BUMP="${{ inputs.bump }}"
           else
@@ -149,7 +151,6 @@ jobs:
           MINOR=${MINOR:-$CUR_MINOR}
           PATCH=${PATCH:-$CUR_PATCH}
 
-          # Bump version based on commit type
           case "${{ steps.bump.outputs.BUMP_TYPE }}" in
             major)
               MAJOR=$((MAJOR + 1))
@@ -177,22 +178,12 @@ jobs:
           echo "VERSION=$VERSION"
 
       # -------------------------------
-      # 5) Restore all projects
+      # 5) Restore, Build, Test
       # -------------------------------
-      - name: Restore all projects with GitHub Packages source
+      - name: Restore
         if: steps.modified.outputs.HAS_PROJECTS == 'true'
-        run: |
-          dotnet nuget add source "https://nuget.pkg.github.com/Notiway/index.json" \
-            --name "github" \
-            --username "Notiway" \
-            --password "${{ secrets.GITHUB_TOKEN }}" \
-            --store-password-in-clear-text
+        run: dotnet restore
 
-          dotnet restore
-
-      # -------------------------------
-      # 6) Build and Test all projects
-      # -------------------------------
       - name: Build
         if: steps.modified.outputs.HAS_PROJECTS == 'true'
         run: dotnet build --configuration Release /p:Version=${VERSION}
@@ -202,20 +193,20 @@ jobs:
         run: dotnet test --no-build --verbosity normal /p:Version=${VERSION}
 
       # -------------------------------
-      # 7) Pack and Push only modified projects
+      # 6) Pack and Push
       # -------------------------------
-      - name: Pack & Push modified projects
+      - name: Pack & Push
         if: steps.modified.outputs.HAS_PROJECTS == 'true'
         run: |
           for PROJ in ${{ steps.modified.outputs.PROJECTS_TO_RELEASE }}; do
             echo "Packing $PROJ..."
             dotnet pack $PROJ/$PROJ.csproj --configuration Release /p:Version=${VERSION} --no-build --output .
-            echo "Pushing $PROJ..."
-            dotnet nuget push $PROJ.${VERSION}.nupkg --source https://nuget.pkg.github.com/Notiway/index.json --api-key ${{ secrets.GITHUB_TOKEN }}
+            echo "Pushing $PROJ to NuGet.org..."
+            dotnet nuget push $PROJ.${VERSION}.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_API_KEY }}
           done
 
       # -------------------------------
-      # 8) Generate per-project release notes
+      # 7) Generate release notes
       # -------------------------------
       - name: Generate release notes
         if: steps.modified.outputs.HAS_PROJECTS == 'true'
@@ -238,7 +229,7 @@ jobs:
           echo "EOF" >> $GITHUB_ENV
 
       # -------------------------------
-      # 9) Create GitHub Release
+      # 8) Create GitHub Release
       # -------------------------------
       - name: Create GitHub Release
         if: steps.modified.outputs.HAS_PROJECTS == 'true'
