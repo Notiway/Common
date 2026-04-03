@@ -20,7 +20,7 @@ on:
         type: string
     secrets:
       NUGET_API_KEY:
-        required: true
+        required: false
 
 permissions:
   contents: write
@@ -88,10 +88,16 @@ jobs:
           FIRST_PROJECT=$(echo "${{ steps.modified.outputs.PROJECTS_TO_RELEASE }}" | awk '{print $1}')
 
           RESPONSE=$(curl -s "https://api.nuget.org/v3-flatcontainer/${FIRST_PROJECT,,}/index.json")
-          ALL_VERSIONS=$(echo "$RESPONSE" | jq -r '.versions[]')
+          ALL_VERSIONS=$(echo "$RESPONSE" | jq -r '.versions[]' 2>/dev/null || echo "")
 
           # Find latest stable version (no hyphen = no prerelease suffix)
           LATEST_STABLE=$(echo "$ALL_VERSIONS" | grep -v '-' | sort -t. -k1,1n -k2,2n -k3,3n | tail -1)
+
+          # If no stable version, extract base version from latest prerelease (e.g. 0.7.8-beta.1 -> 0.7.8)
+          if [[ -z "$LATEST_STABLE" || "$LATEST_STABLE" == "null" ]]; then
+            LATEST_STABLE=$(echo "$ALL_VERSIONS" | sed 's/-.*//' | sort -t. -k1,1n -k2,2n -k3,3n | tail -1)
+          fi
+
           if [[ -z "$LATEST_STABLE" || "$LATEST_STABLE" == "null" ]]; then
             LATEST_STABLE="0.0.0"
           fi
@@ -197,12 +203,14 @@ jobs:
       # -------------------------------
       - name: Pack & Push
         if: steps.modified.outputs.HAS_PROJECTS == 'true'
+        env:
+          NUGET_KEY: ${{ secrets.NUGET_API_KEY }}
         run: |
           for PROJ in ${{ steps.modified.outputs.PROJECTS_TO_RELEASE }}; do
             echo "Packing $PROJ..."
             dotnet pack $PROJ/$PROJ.csproj --configuration Release /p:Version=${VERSION} --no-build --output .
             echo "Pushing $PROJ to NuGet.org..."
-            dotnet nuget push $PROJ.${VERSION}.nupkg --source https://api.nuget.org/v3/index.json --api-key ${{ secrets.NUGET_API_KEY }}
+            dotnet nuget push $PROJ.${VERSION}.nupkg --source https://api.nuget.org/v3/index.json --api-key "${NUGET_KEY}"
           done
 
       # -------------------------------

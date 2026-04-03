@@ -1,0 +1,77 @@
+name: Release Custom Version
+
+on:
+  workflow_dispatch:
+    inputs:
+      project:
+        description: 'Project to release'
+        required: true
+        type: choice
+        options:
+          - Notiway.Common.Core
+          - Notiway.Common.Plugins
+      version:
+        description: 'Version to publish (e.g. 0.8.0, 1.0.0-beta.1)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    env:
+      VERSION: ${{ inputs.version }}
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --configuration Release /p:Version=${VERSION}
+
+      - name: Test
+        run: dotnet test --no-build --verbosity normal /p:Version=${VERSION}
+
+      - name: Pack & Push
+        run: |
+          PROJ="${{ inputs.project }}"
+          echo "Packing $PROJ v${VERSION}..."
+          dotnet pack $PROJ/$PROJ.csproj --configuration Release /p:Version=${VERSION} --no-build --output .
+          echo "Pushing $PROJ to NuGet.org..."
+          dotnet nuget push $PROJ.${VERSION}.nupkg --source https://api.nuget.org/v3/index.json --api-key "${{ secrets.NUGET_API_KEY }}"
+
+      - name: Generate release notes
+        run: |
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          PROJ="${{ inputs.project }}"
+          if [[ -z "$LAST_TAG" ]]; then
+            NOTES=$(git log --pretty=format:"- %s" -- $PROJ)
+          else
+            NOTES=$(git log $LAST_TAG..HEAD --pretty=format:"- %s" -- $PROJ)
+          fi
+          echo "RELEASE_NOTES<<EOF" >> $GITHUB_ENV
+          echo -e "## $PROJ\n$NOTES" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.project }}-v${{ inputs.version }}
+          name: ${{ inputs.project }} v${{ inputs.version }}
+          body: ${{ env.RELEASE_NOTES }}
+          draft: false
+          prerelease: ${{ contains(inputs.version, '-') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

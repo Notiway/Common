@@ -42,13 +42,20 @@ Every plugin implements `IPlugin` which provides service registration, middlewar
 
 | Interface | Purpose |
 |---|---|
-| `IBufferPlugin` | Consume messages from a queue or stream (SQS, Redis Streams, Kafka, etc.) |
-| `IBrokerPlugin` | Publish messages across gateway instances (SNS, Redis Pub/Sub, Kafka, etc.) |
+| `IBrokerPlugin` | Publish and consume messages across gateway instances (SNS+SQS, RabbitMQ, Kafka, etc.) |
 | `IStoragePlugin` | Persist and retrieve notifications (DynamoDB, PostgreSQL, MongoDB, etc.) |
 | `IAuthPlugin` | Authenticate incoming connections (JWT, etc.) |
 | `ITenantValidationPlugin` | Validate tenant access and authorization |
 | `IHostPlugin` | Provide host-level runtime configuration |
 | `IMiddlewarePlugin` | Register custom ASP.NET middleware in the pipeline |
+
+The broker contract is split into two focused interfaces composed via `IBroker`:
+
+| Interface | Responsibility |
+|---|---|
+| `IBrokerProducer` | Send notifications and manage subscriptions |
+| `IBrokerConsumer` | Consume messages and manage endpoints (create, delete, check existence) |
+| `IBroker` | Unified interface extending both `IBrokerProducer` and `IBrokerConsumer` |
 
 ### Install
 
