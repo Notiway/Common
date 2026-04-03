@@ -9,6 +9,10 @@ on:
         default: ''
         type: string
 
+permissions:
+  contents: write
+  packages: write
+
 jobs:
   release:
     uses: ./.github/workflows/release.yml
