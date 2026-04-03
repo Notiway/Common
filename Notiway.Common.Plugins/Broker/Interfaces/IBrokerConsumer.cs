@@ -1,11 +1,21 @@
-﻿using Notiway.Common.Core.Enums;
+using Notiway.Common.Core.Enums;
 using Notiway.Common.Core.Models;
-using Notiway.Common.Plugins.Broker.Interfaces;
 
-namespace Notiway.Common.Plugins.Listener.Interfaces;
-
-public interface IBufferManager
+namespace Notiway.Common.Plugins.Broker.Interfaces;
+public interface IBrokerConsumer
 {
+    /// <summary>
+    ///
+    /// </summary>
+    /// <typeparam name="TMessage"></typeparam>
+    /// <param name="endpointTarget">Can be queueName or queueUrl or anything that identifies queue.
+    /// Target should be result of queue creation from IQueueManager</param>
+    /// <param name="ProcessMessageAsync"></param>
+    /// <param name="cancellationToken"></param>
+    /// <param name="retry"></param>
+    /// <returns></returns>
+    Task ConsumeAsync<TMessage>(string endpointTarget, Func<TMessage, Task> ProcessMessageAsync, int retry = 3, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Creates a message endpoint that can receive messages.
     /// </summary>
