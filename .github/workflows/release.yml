@@ -3,8 +3,12 @@ name: .NET SemVer Publish Modified Projects
 on:
   push:
     branches: [ "main" ]
-  workflow_dispatch:
+  workflow_call:
     inputs:
+      bump:
+        description: 'Version bump type: major, minor, or patch'
+        required: true
+        type: string
       prerelease:
         description: 'Prerelease label (e.g. alpha, beta). Leave empty for stable release.'
         required: false
@@ -12,14 +16,14 @@ on:
         type: string
 
 permissions:
-  contents: write        # required for GitHub Releases
+  contents: write
   packages: write
 
 env:
   MAJOR: ""
   MINOR: ""
   PATCH: ""
-  PRERELEASE: ${{ github.event.inputs.prerelease || 'beta' }}
+  PRERELEASE: ${{ inputs.prerelease || (github.event_name == 'push' && 'beta') || '' }}
 
 jobs:
   publish:
@@ -43,16 +47,16 @@ jobs:
         run: |
           PROJECTS=("Notiway.Common.Core" "Notiway.Common.Plugins")
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-          
+
           CHANGED_DIRS=$(git diff --name-only $LAST_TAG HEAD | awk -F/ '{print $1}' | sort -u)
-          
+
           PROJECTS_TO_RELEASE=()
           for PROJ in "${PROJECTS[@]}"; do
             if echo "$CHANGED_DIRS" | grep -q "^$PROJ$"; then
               PROJECTS_TO_RELEASE+=("$PROJ")
             fi
           done
-          
+
           if [ ${#PROJECTS_TO_RELEASE[@]} -eq 0 ]; then
             echo "No modified projects detected. Skipping."
             echo "HAS_PROJECTS=false" >> $GITHUB_OUTPUT
@@ -84,7 +88,7 @@ jobs:
           fi
 
           # Find latest stable version (no hyphen = no prerelease suffix)
-          LATEST_STABLE=$(echo "$ALL_VERSIONS" | grep -v '-' | head -1)
+          LATEST_STABLE=$(echo "$ALL_VERSIONS" | grep -v '-' | sort -t. -k1,1n -k2,2n -k3,3n | tail -1)
           if [[ -z "$LATEST_STABLE" || "$LATEST_STABLE" == "null" ]]; then
             LATEST_STABLE="0.0.0"
           fi
@@ -108,24 +112,30 @@ jobs:
         if: steps.modified.outputs.HAS_PROJECTS == 'true'
         id: bump
         run: |
-          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-          if [[ -z "$LAST_TAG" ]]; then
-            COMMITS=$(git log --pretty=format:"%s")
+          # Use explicit input if provided, otherwise detect from commits
+          if [[ -n "${{ inputs.bump }}" ]]; then
+            BUMP="${{ inputs.bump }}"
           else
-            COMMITS=$(git log $LAST_TAG..HEAD --pretty=format:"%s")
-          fi
+            LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+            if [[ -z "$LAST_TAG" ]]; then
+              COMMITS=$(git log --pretty=format:"%s")
+            else
+              COMMITS=$(git log $LAST_TAG..HEAD --pretty=format:"%s")
+            fi
 
-          if echo "$COMMITS" | grep -qi "BREAKING CHANGE"; then
-            BUMP=major
-          elif echo "$COMMITS" | grep -qi "^feat"; then
-            BUMP=minor
-          elif echo "$COMMITS" | grep -qi "^fix"; then
-            BUMP=patch
-          else
-            BUMP=patch
+            if echo "$COMMITS" | grep -qi "BREAKING CHANGE"; then
+              BUMP=major
+            elif echo "$COMMITS" | grep -qi "^feat"; then
+              BUMP=minor
+            elif echo "$COMMITS" | grep -qi "^fix"; then
+              BUMP=patch
+            else
+              BUMP=patch
+            fi
           fi
 
           echo "BUMP_TYPE=$BUMP" >> $GITHUB_OUTPUT
+          echo "Bump type: $BUMP"
 
       # -------------------------------
       # 4) Calculate new version
@@ -139,27 +149,27 @@ jobs:
           MINOR=${MINOR:-$CUR_MINOR}
           PATCH=${PATCH:-$CUR_PATCH}
 
+          # Bump version based on commit type
+          case "${{ steps.bump.outputs.BUMP_TYPE }}" in
+            major)
+              MAJOR=$((MAJOR + 1))
+              MINOR=0
+              PATCH=0
+              ;;
+            minor)
+              MINOR=$((MINOR + 1))
+              PATCH=0
+              ;;
+            patch)
+              PATCH=$((PATCH + 1))
+              ;;
+          esac
+
           if [[ -n "$PRERELEASE" ]]; then
-            # Prerelease: keep the base version, increment prerelease counter
             COUNTER=${{ steps.get_version.outputs.PRERELEASE_COUNTER }}
             COUNTER=$((COUNTER + 1))
             VERSION="$MAJOR.$MINOR.$PATCH-${PRERELEASE}.${COUNTER}"
           else
-            # Stable: bump version as usual
-            case "${{ steps.bump.outputs.BUMP_TYPE }}" in
-              major)
-                MAJOR=$((MAJOR + 1))
-                MINOR=0
-                PATCH=0
-                ;;
-              minor)
-                MINOR=$((MINOR + 1))
-                PATCH=0
-                ;;
-              patch)
-                PATCH=$((PATCH + 1))
-                ;;
-            esac
             VERSION="$MAJOR.$MINOR.$PATCH"
           fi
 
@@ -177,7 +187,7 @@ jobs:
             --username "Notiway" \
             --password "${{ secrets.GITHUB_TOKEN }}" \
             --store-password-in-clear-text
-      
+
           dotnet restore
 
       # -------------------------------

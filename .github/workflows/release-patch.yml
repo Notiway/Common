@@ -1,0 +1,17 @@
+name: Create Patch Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      prerelease:
+        description: 'Prerelease label (e.g. beta). Leave empty for stable release.'
+        required: false
+        default: ''
+        type: string
+
+jobs:
+  release:
+    uses: ./.github/workflows/release.yml
+    with:
+      bump: patch
+      prerelease: ${{ inputs.prerelease }}
