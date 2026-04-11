@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PackageId>Notiway.Common.Plugins.ContractTests</PackageId>
+    <Authors>Jakub Paulina</Authors>
+    <Company>Notiway</Company>
+    <PackageProjectUrl>https://notiway.net</PackageProjectUrl>
+    <PackageDescription>Abstract contract test suites for Notiway plugin implementations. Reference this package in your plugin test project and inherit from the base classes.</PackageDescription>
+    <RepositoryUrl>https://github.com/Notiway/Common</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <Tags>.net10 notiway plugins contract tests</Tags>
+  </PropertyGroup>
+  <PropertyGroup>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.0.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Notiway.Common.Plugins\Notiway.Common.Plugins.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <Using Include="Notiway.Common.Core.Enums" />
+    <Using Include="Notiway.Common.Core.Models" />
+  </ItemGroup>
+
+</Project>

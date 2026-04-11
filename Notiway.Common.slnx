@@ -1,4 +1,5 @@
 <Solution>
   <Project Path="Notiway.Common.Core/Notiway.Common.Core.csproj" />
   <Project Path="Notiway.Common.Plugins/Notiway.Common.Plugins.csproj" />
+  <Project Path="Notiway.Common.Plugins.ContractTests/Notiway.Common.Plugins.ContractTests.csproj" />
 </Solution>
